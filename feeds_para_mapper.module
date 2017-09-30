@@ -1,50 +1,47 @@
 <?php
-/**
- * Implements hook_feeds_processor_targets_alter().
- */
-function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type, $bundle) {
-    //get all fields 
-    $entity_fields = field_info_instances($entity_type, $bundle);
-    $fields_to_include = [];
+  /**
+   * Implements hook_feeds_processor_targets_alter().
+   */
 
-    //search for fields of type paragraphs
-    foreach ($entity_fields as  $entity_field) {
-      if($entity_field['bundle'] == $bundle && $entity_field['widget']['module'] == "paragraphs"){
-        array_push($fields_to_include, $entity_field);
+  function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type, $bundle) {
+      //get all fields
+      $entity_fields = field_info_instances($entity_type, $bundle);
+      $fields_to_include = [];
+      //search for fields of type paragraphs
+      foreach ($entity_fields as  $entity_field) {
+        if($entity_field['bundle'] == $bundle && $entity_field['widget']['module'] == "paragraphs"){
+          array_push($fields_to_include, $entity_field);
+        }
       }
-    }
 
-    //if there are fields of type paragrahs founded 
-    if(!empty($fields_to_include)){
-      foreach ($fields_to_include as $para_field) {
-        $targets[$para_field['label'] . ': Create'] = array(
-        'name' => t($para_field['label']),
-        'field_info' => [
-          'name' => $para_field['label'],
-          'machine_name' => $para_field['field_name'],
-          'field_id' => $para_field['field_id'],
-          'bundle' => $bundle,
-          'entity_type' => $entity_type,
-        ],
-        'description' => t('A Paragraphs field from the node'),
-        'callback' => 'feeds_para_mapper_set_target',
-        'summary_callbacks' => array('feeds_para_mapper_sum_callback'),
-        'form_callbacks' => array('feeds_para_mapper_create_field_settings_form'),
-        );
+      //if there are fields of type paragrahs founded
+      if(!empty($fields_to_include)){
+        foreach ($fields_to_include as $para_field) {
+          $targets[$para_field['label'] . ': Create'] = array(
+          'name' => t($para_field['label']),
+          'field_info' => [
+            'name' => $para_field['label'],
+            'machine_name' => $para_field['field_name'],
+            'field_id' => $para_field['field_id'],
+            'bundle' => $bundle,
+            'entity_type' => $entity_type,
+          ],
+          'description' => t('A Paragraphs field from the node'),
+          'callback' => 'feeds_para_mapper_set_target',
+          'summary_callbacks' => array('feeds_para_mapper_sum_callback'),
+          'form_callbacks' => array('feeds_para_mapper_create_field_settings_form'),
+          );
 
+        }
       }
+      return $targets;
     }
-    return $targets;
-  }
 
 
     function feeds_para_mapper_set_target($source, $entity, $target, $value, $mapping){
         $info = field_info_field($mapping['selected_sub_target']);
+        $new_item = feeds_para_mapper_get_init_para($entity, $mapping,$info);
         if(isset($info['bundles']['paragraphs_item'])){
-            $new_item = entity_create('paragraphs_item', [
-                'bundle' => $info['bundles']['paragraphs_item'][0],
-                'field_name' => $mapping['selected_bundle'],
-            ]);
             $tax_res = feeds_para_mapper_check_terms($mapping,$value[0],$info);
             $tax_list=  "";
             if(isset($tax_res['terms'])){
@@ -60,24 +57,30 @@ function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type
                 feeds_para_mapper_save_list_type($info,$mapping, $value[0],$entity,$new_item);
             }elseif($info['type'] == 'interval'){
                 //save to interval field:
-                feeds_para_mapper_save_interval_type($info,$mapping, $value[0],$entity,$new_item);
+                if($new_item){
+                  feeds_para_mapper_save_interval_type($info, $mapping, $value[0], $entity, $new_item);
+                }
 
             }else{
                 //save to a normal field (text, long text, number):
-                feeds_para_mapper_save_normal($info,$mapping, $value[0],$entity,$new_item);
+                if($new_item){
+                  feeds_para_mapper_save_normal($info,$mapping, $value[0],$entity,$new_item);
+                }
+                
             }
 
         }else{
             //field is not a paragraph
         }
-
     }
 
     function feeds_para_mapper_save_normal($field_info, $mapping, $value, $entity, $para_entity){
         if(!empty($value)){
             $para_entity->setHostEntity('node', $entity);
             $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = $value;
+
             $para_entity->save();
+            feeds_para_mapper_cleanup($mapping,$entity);
         }
     }
     //checks if the field is of type interval and process it
@@ -104,8 +107,9 @@ function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type
 
                 }
             }
-            $para_entity->setHostEntity('node', $entity);
         }
+      $para_entity->save();
+      feeds_para_mapper_cleanup($mapping,$entity);
     }
 
 
@@ -128,6 +132,7 @@ function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type
             $para_entity->save();
 
         }
+      feeds_para_mapper_cleanup($mapping,$entity);
     }
     function feeds_para_mapper_save_tax_terms_type($field_info, $mapping, $value, $entity, $para_entity){
         $field_type = $field_info['type'];
@@ -155,6 +160,7 @@ function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type
                 $para_entity->save();
             }
         }
+      feeds_para_mapper_cleanup($mapping,$entity);
     }
 
     // returns array of the search and create results of tax terms:
@@ -209,120 +215,181 @@ function feeds_para_mapper_feeds_processor_targets_alter(&$targets, $entity_type
       return $res;
 
     }
-function feeds_para_mapper_create_field_settings_form(array $mapping, $target, array $form, array $form_state){
-  $assoc_fields = feeds_para_get_para_bundle_fields($target);
-  $form_settings = [
-    'selected_bundle' => [
+  function feeds_para_mapper_create_field_settings_form(array $mapping, $target, array $form, array $form_state){
+    $assoc_fields = feeds_para_get_para_bundle_fields($target);
+    $form_settings = [
+      'selected_bundle' => [
+        '#type' => 'select',
+        '#options' =>  [t($target['field_info']['name'])],
+        '#value' =>  $target['field_info']['machine_name'],
+        "#default_value" => $mapping['selected_bundle'],
+        '#title' => 'Bundle'
+      ]
+    ];
+    $sub_targets = [];
+    foreach ($assoc_fields as $key => $aField) {
+      $sub_targets[$aField['machine_name']] = t($aField['label']);
+    }
+    $form_settings['selected_sub_target'] = [
       '#type' => 'select',
-      '#options' =>  [t($target['field_info']['name'])],
-      '#value' =>  $target['field_info']['machine_name'],
-      "#default_value" => $mapping['selected_bundle'],
-      '#title' => 'Bundle'
-    ]
-  ];
-  $sub_targets = [];
-  foreach ($assoc_fields as $key => $aField) {
-    $sub_targets[$aField['machine_name']] = t($aField['label']);
+        '#options' =>  $sub_targets,
+        "#default_value" => $mapping['selected_sub_target'],
+        '#title' => 'Target field'
+    ];
+    foreach ($assoc_fields as $key => $aField) {
+      if(isset($aField['tax_settings'])){
+        $form_settings['search_by']  = $aField['tax_settings']['search_by'];
+        $form_settings['auto_create']  = $aField['tax_settings']['auto_create'];
+        $form_settings['auto_create']['#default_value'] = $mapping['auto_create'];
+        $form_settings['default_voc']  = $aField['tax_settings']['default_voc'];
+        $form_settings['default_voc']['#default_value'] = $mapping['default_voc'];
+      }
+    }
+    return $form_settings;
   }
-  $form_settings['selected_sub_target'] = [
-    '#type' => 'select',
-      '#options' =>  $sub_targets,
-      "#default_value" => $mapping['selected_sub_target'],
-      '#title' => 'Target Field'
-  ];
-  foreach ($assoc_fields as $key => $aField) {
-    if(isset($aField['tax_settings'])){
-      $form_settings['search_by']  = $aField['tax_settings']['search_by'];
-      $form_settings['auto_create']  = $aField['tax_settings']['auto_create'];
-      $form_settings['default_voc']  = $aField['tax_settings']['default_voc'];
+  function feeds_para_mapper_sum_callback(array $mapping, $target, array $form, array $form_state){
+    $markup = "";
+    if (!isset($mapping['selected_bundle']) && empty($mapping['selected_bundle'])) {
+      return "Please configure";
+    }else{
+      $markup .= t('Create a %selected_bundle paragraph', array('%selected_bundle' => $mapping['selected_bundle']));
+    }
+    if(isset($mapping['auto_create'])){
+      $voc = taxonomy_vocabulary_load($mapping['default_voc']);
+      $markup .= t(' & auto create new terms within ' . $voc->name);
+    }
+    return $markup;
+  }
+
+  function feeds_para_get_para_bundle_fields($target){
+      //todo: note that the paragraph bundle machine name should contain some of
+      // the field machine name that associated with the target node
+      $fields_list = field_info_field_map();
+      $para_assoc_fields = [];
+      //look up all associated fields
+      foreach ($fields_list as $key => $aField) {
+        if(isset($aField['bundles']['paragraphs_item'])){
+          foreach ($aField['bundles']['paragraphs_item'] as $bundleKey => $field_bundle) {
+                $org_bundle = $field_bundle;
+                $field_bundle_mod = str_replace('field_', '', $field_bundle);
+                $bundle_name_ports = explode('_', $field_bundle_mod);
+                foreach ($bundle_name_ports as $port) {
+                  if(strpos($target['field_info']['machine_name'], $port) !== false){
+                      $aField['machine_name'] = $key;
+                      $retField = field_info_instance(
+                        'paragraphs_item',
+                        $key,
+                        $org_bundle);
+                      $aField['label'] = $retField['label'];
+                      array_push($para_assoc_fields, $aField);
+
+                    }
+                }
+
+          }
+        }
+      }
+
+      foreach ($para_assoc_fields as $key => $para) {
+        if($para['type'] == "taxonomy_term_reference"){
+          $para['tax_settings'] = feeds_para_mapper_init_tax_field_settings($target);
+          $para_assoc_fields[$key] = $para;
+        }
+      }
+      return $para_assoc_fields;
+  }
+  function feeds_para_mapper_init_tax_field_settings(){
+      $vocabulary = taxonomy_get_vocabularies();
+      $checklist_vocab_array = array();
+      foreach ($vocabulary as $item) {
+          $key = $item->vid;
+          $value = $item->name;
+          $checklist_vocab_array[$key] = $value;
+      }
+      $tax_settings = [
+          'search_by' => [
+            '#type' => 'select',
+            '#options' => [
+              'term_name' => t('Term name'),
+              'tid' => t('Term ID'),
+              'guid' => t('GUID')
+            ],
+            "#default_value" => 'Term name',
+            '#title' => t('Search taxonomy terms by:'),
+            '#description' => t("note: no need to use tamper for exploding terms, i already do this"),
+          ],
+          'default_voc' => [
+              '#type' => 'select',
+              '#options' => $checklist_vocab_array,
+              "#default_value" => 0,
+              '#title' => t('Default vocabulary'),
+              '#description' => t("Default vocabulary for new terms."),
+          ],
+          'auto_create' => [
+            '#type' => 'checkbox',
+            "#default_value" => 0,
+            '#title' => t('Auto create'),
+            '#description' => t("Create the term if it doesn't exist."),
+          ],
+      ];
+    return $tax_settings;
+  }
+  function feeds_para_mapper_get_init_para($entity, $mapping, $info){
+    $item = null;
+    //find out if we have previously saved paragraph:
+    $has_para = isset($entity->{$mapping['selected_bundle']});
+    if($has_para){
+      //get the current paragraph:
+      $para_id = $entity->{$mapping['selected_bundle']}['und'][0]['value'];
+      $para_entity = entity_load('paragraphs_item', [$para_id]);
+      $item = reset($para_entity);
+      $item->revision = true;
+      $item->default_revision = $item->revision_id;
+    }
+
+    if (!$item && isset($info['bundles']['paragraphs_item'])) {
+      $correct_bundle = feeds_para_mapper_find_target_bundle($info, $mapping);
+      if($correct_bundle){
+        $item = entity_create('paragraphs_item', [
+          'bundle' => $correct_bundle,
+          'field_name' => $mapping['selected_bundle'],
+        ]);
+      }
+    }
+    return $item;
+  }
+  function feeds_para_mapper_has_paragraph($entity, $mapping){
+    if(isset($entity->{$mapping['selected_bundle']})){
+      return true;
+    }else{
+      return false;
     }
   }
-  $nodes = entity_load('paragraphs_item');
-  $field_info = field_info_field($mapping['selected_sub_target']);
-  dpm($field_info);
-  dpm($nodes);
-  return $form_settings;
-}
-function feeds_para_mapper_sum_callback(array $mapping, $target, array $form, array $form_state){
-  $markup = "";
-  if (!isset($mapping['selected_bundle']) && empty($mapping['selected_bundle'])) {
-    return "Please configure";
-  }else{
-    $markup .= t('Create a %selected_bundle paragraph', array('%selected_bundle' => $mapping['selected_bundle']));
-  }
-  return $markup;
-}
-
-function feeds_para_get_para_bundle_fields($target){
-    //todo: note that the paragraph bundle machine name should contain some of
-    // the field machine name that associated with the target node
-    $fields_list = field_info_field_map();
-    $para_assoc_fields = [];
-    //look up all associated fields
-    foreach ($fields_list as $key => $aField) {
-      if(isset($aField['bundles']['paragraphs_item'])){
-        foreach ($aField['bundles']['paragraphs_item'] as $bundleKey => $field_bundle) {
-              $org_bundle = $field_bundle;
-              $field_bundle_mod = str_replace('field_', '', $field_bundle);
-              $bundle_name_ports = explode('_', $field_bundle_mod);
-              foreach ($bundle_name_ports as $port) {
-                if(strpos($target['field_info']['machine_name'], $port) !== false){
-                    $aField['machine_name'] = $key;
-                    $retField = field_info_instance(
-                      'paragraphs_item',
-                      $key,
-                      $org_bundle);
-                    $aField['label'] = $retField['label'];
-                    array_push($para_assoc_fields, $aField);
-
-                  }
-              }
-              
+  function feeds_para_mapper_find_target_bundle($info, $mapping){
+    $s_bundle = str_replace("field_", "", $mapping['selected_bundle']);
+    $s_bundle_ports = explode('_', $s_bundle);
+    $current_bundles = $info['bundles']['paragraphs_item'];
+    $found = null;
+    foreach ($s_bundle_ports as $s_bundle){
+      foreach ($current_bundles as $avBundle){
+        if(strpos($avBundle, $s_bundle) !== false){
+          $found = $avBundle;
         }
       }
     }
-
-    foreach ($para_assoc_fields as $key => $para) {
-      if($para['type'] == "taxonomy_term_reference"){
-        $para['tax_settings'] = feeds_para_mapper_init_tax_field_settings($target);
-        $para_assoc_fields[$key] = $para;
+    return $found;
+  }
+  //removes all associated paragraphs and keep the last one
+  function feeds_para_mapper_cleanup($mapping, $entity){
+    if($has_para = feeds_para_mapper_has_paragraph($entity,$mapping)){
+      //we need to remove all associated paragraphs and keep the last one
+      $paras = $entity->{$mapping['selected_bundle']}['und'];
+      $paras_keys = array_keys($paras);
+      $last_key = end($paras_keys);
+      foreach($paras_keys as $key){
+        if($key !== $last_key){
+          $entity->{$mapping['selected_bundle']}['und'][$key] = null;
+        }
       }
     }
-    return $para_assoc_fields;
-}
-function feeds_para_mapper_init_tax_field_settings(){
-    $vocabulary = taxonomy_get_vocabularies();
-    $checklist_vocab_array = array();
-    foreach ($vocabulary as $item) {
-        $key = $item->vid;
-        $value = $item->name;
-        $checklist_vocab_array[$key] = $value;
-    }
-    $tax_settings = [
-        'search_by' => [
-          '#type' => 'select',
-          '#options' => [
-            'term_name' => t('Term name'),
-            'tid' => t('Term ID'),
-            'guid' => t('GUID')
-          ],
-          "#default_value" => 'Term name',
-          '#title' => t('Search taxonomy terms by:'),
-          '#description' => t("note: no need to use tamper for exploding terms, i already do this"),
-        ],
-        'default_voc' => [
-            '#type' => 'select',
-            '#options' => $checklist_vocab_array,
-            "#default_value" => 0,
-            '#title' => t('Default vocabulary'),
-            '#description' => t("Default vocabulary for new terms."),
-        ],
-        'auto_create' => [
-          '#type' => 'checkbox',
-          "#default_value" => 0,
-          '#title' => t('Auto create'),
-          '#description' => t("Create the term if it doesn't exist."),
-        ],
-    ];
-  return $tax_settings;
-}
+  }
