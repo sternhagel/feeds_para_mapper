@@ -23,7 +23,7 @@
   if (!empty($fields_to_include)) {
     foreach ($fields_to_include as $para_field) {
       $targets[$para_field['label'] . ': Create'] = array(
-        'name' => t("%label", ['%label' => $para_field['label']]),
+        'name' => t("@label", array('@label' => $para_field['label'])),
         'field_info' => [
           'name' => $para_field['label'],
           'machine_name' => $para_field['field_name'],
@@ -317,7 +317,7 @@
     $form_settings = [
       'selected_bundle' => [
         '#type' => 'select',
-        '#options' => [t("%name", array('%name' => $target['field_info']['name']))],
+        '#options' => [t("@name", array('@name' => $target['field_info']['name']))],
         '#value' => $target['field_info']['machine_name'],
         "#default_value" => $mapping['selected_bundle'],
         '#title' => 'Bundle',
@@ -325,7 +325,7 @@
     ];
     $sub_targets = [];
     foreach ($assoc_fields as $key => $aField) {
-      $sub_targets[$aField['machine_name']] = t("%label", array('%label' => $aField['label']));
+      $sub_targets[$aField['machine_name']] = t("@label", array('@label' => $aField['label']));
     }
     $form_settings['selected_sub_target'] = [
       '#type' => 'select',
