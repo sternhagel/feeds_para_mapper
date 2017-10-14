@@ -28,7 +28,8 @@ directory.
 
 Configuration
 -------------
-To enable this module, visit administer -> modules, and enable Paragraphs Mapper.
+To enable this module, visit administer -> modules,
+and enable Paragraphs Mapper.
 
 Author
 ------
