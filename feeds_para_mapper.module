@@ -89,6 +89,9 @@
       }
 
     }
+    else {
+      // Field is not a paragraph.
+    }
   }
 
   /**
@@ -290,6 +293,9 @@
           array_push($founded_terms, $termArr);
         }
       }
+    }
+    else {
+      // Target field is not a taxonomy.
     }
     $res = ['terms' => $founded_terms, 'errors' => $term_save_errors];
     return $res;
