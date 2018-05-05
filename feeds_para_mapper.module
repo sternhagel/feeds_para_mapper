@@ -19,7 +19,7 @@
     }
   }
 
-  // If there are fields of type paragrahs founded.
+  // If there are fields of type Paragraphs founded.
   if (!empty($fields_to_include)) {
     foreach ($fields_to_include as $para_field) {
       $targets[$para_field['label'] . ': Create'] = array(
@@ -49,48 +49,66 @@
    *   The source value.
    * @param object $entity
    *   The entity that is being edited.
-   * @param array $target
+   * @param string $target
    *   The target field that is being mapped to.
    * @param array $value
    *   The source field value.
    * @param array $mapping
    *   Contains the settings form fields values.
    */
-  function feeds_para_mapper_set_target($source, $entity, array $target, array $value, array $mapping) {
+  function feeds_para_mapper_set_target($source, $entity, $target, array $value, array $mapping) {
     $info = field_info_field($mapping['selected_sub_target']);
-    $new_item = feeds_para_mapper_get_init_para($entity, $mapping, $info);
+    // If field is a Paragraphs field.
     if (isset($info['bundles']['paragraphs_item'])) {
       $tax_res = feeds_para_mapper_check_terms($mapping, $value[0], $info);
+      $new_item = feeds_para_mapper_get_init_para($entity, $mapping, $info);
       $tax_list = "";
       if (isset($tax_res['terms'])) {
         foreach ($tax_res['terms'] as $retTerm) {
           $tax_list .= $retTerm['tid'] . ",";
         }
       }
-      if ($tax_res['terms'] && $info['type'] == "taxonomy_term_reference") {
-        // Save to a taxonomy list type field.
-        feeds_para_mapper_save_tax_terms_type($info, $mapping, $tax_list, $entity, $new_item);
-      }
-      elseif ($info['type'] == 'list_text' || $info['type'] == 'list_integer') {
-        // Save to a list type field.
-        feeds_para_mapper_save_list_type($info, $mapping, $value[0], $entity, $new_item);
-      }
-      elseif ($info['type'] == 'interval') {
-        // Save to interval field.
-        if ($new_item) {
-          feeds_para_mapper_save_interval_type($info, $mapping, $value[0], $entity, $new_item);
-        }
-      }
-      else {
-        // Save to a normal field (text, long text, number).
-        if ($new_item) {
-          feeds_para_mapper_save_normal($mapping, $value[0], $entity, $new_item);
-        }
-      }
+      switch ($info['type']) {
+        case "taxonomy_term_reference":
+          // Save to a taxonomy list type field.
+          feeds_para_mapper_save_tax_terms_type($info, $mapping, $tax_list, $entity, $new_item);
+          break;
 
-    }
-    else {
-      // Field is not a paragraph.
+        case "list_text":
+        case "list_integer":
+          // Save to a list type field.
+          feeds_para_mapper_save_list_type($info, $mapping, $value[0], $entity, $new_item);
+          break;
+
+        case "interval":
+          // Save to interval field.
+          feeds_para_mapper_save_interval_type($info, $mapping, $value[0], $entity, $new_item);
+          break;
+
+        case "list_boolean":
+          // Save to a boolean field.
+          feeds_para_mapper_save_list_boolean_type($mapping, $value[0], $entity, $new_item);
+          break;
+
+        case "number_integer":
+        case "number_decimal":
+        case "number_float":
+          // Save to numeric field.
+          feeds_para_mapper_save_numeric_type($info, $mapping, $value[0], $entity, $new_item);
+          break;
+
+        case "image":
+        case "file":
+          // Save to image field.
+          feeds_para_mapper_save_file_type($mapping, $value[0], $entity, $new_item);
+          break;
+
+        default:
+          // Save to a normal field (text, long text).
+          feeds_para_mapper_save_normal($mapping, $value[0], $entity, $new_item);
+          break;
+
+      }
     }
   }
 
@@ -107,9 +125,96 @@
    *   The newly created paragraph entity.
    */
   function feeds_para_mapper_save_normal(array $mapping, $value, $entity, $para_entity) {
-    if (!empty($value)) {
+    if ($para_entity && !empty($value)) {
       $para_entity->setHostEntity('node', $entity);
       $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = $value;
+      $para_entity->save();
+      feeds_para_mapper_cleanup($mapping, $entity);
+    }
+  }
+
+  /**
+   * For saving a value to a numeric field.
+   *
+   * @param array $field_info
+   *   The target field info.
+   * @param array $mapping
+   *   Contains the settings form fields values.
+   * @param string $value
+   *   The source field value.
+   * @param object $entity
+   *   The entity that is being edited.
+   * @param object $para_entity
+   *   The newly created paragraph entity.
+   */
+  function feeds_para_mapper_save_numeric_type(array $field_info, array $mapping, $value, $entity, $para_entity) {
+    if ($para_entity && !empty($value)) {
+      $para_entity->setHostEntity('node', $entity);
+      switch ($field_info['type']) {
+        case "number_integer":
+          $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = (int) $value;
+          break;
+
+        case "number_decimal":
+        case "number_float":
+          $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = (float) $value;
+          break;
+
+        default:
+          NULL;
+          break;
+
+      }
+      $para_entity->save();
+      feeds_para_mapper_cleanup($mapping, $entity);
+    }
+  }
+
+  /**
+   * For saving a value to an image field.
+   *
+   * @param array $mapping
+   *   Contains the settings form fields values.
+   * @param string $value
+   *   The source field value.
+   * @param object $entity
+   *   The entity that is being edited.
+   * @param object $para_entity
+   *   The newly created paragraph entity.
+   */
+  function feeds_para_mapper_save_file_type(array $mapping, $value, $entity, $para_entity) {
+    if ($para_entity && !empty($value)) {
+      $file = feeds_para_mapper_get_file($value);
+      if ($file) {
+        $para_entity->setHostEntity('node', $entity);
+        $para_entity->{$mapping['selected_sub_target']}['und'][0] = (array) $file;
+        $para_entity->save();
+        feeds_para_mapper_cleanup($mapping, $entity);
+      }
+    }
+  }
+
+  /**
+   * For saving a value to a list_boolean field.
+   *
+   * @param array $mapping
+   *   Contains the settings form fields values.
+   * @param string $value
+   *   The source field value.
+   * @param object $entity
+   *   The entity that is being edited.
+   * @param object $para_entity
+   *   The newly created paragraph entity.
+   */
+  function feeds_para_mapper_save_list_boolean_type(array $mapping, $value, $entity, $para_entity) {
+    if ($para_entity && !empty($value)) {
+      $para_entity->setHostEntity('node', $entity);
+      if ($value === "1" || $value === "true" || $value === "TRUE") {
+        $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = 1;
+      }
+      else {
+        $para_entity->{$mapping['selected_sub_target']}['und'][0]['value'] = 0;
+      }
       $para_entity->save();
       feeds_para_mapper_cleanup($mapping, $entity);
     }
@@ -130,32 +235,34 @@
    *   The newly created paragraph entity.
    */
   function feeds_para_mapper_save_interval_type(array $field_info, array $mapping, $value, $entity, $para_entity) {
-    $s_values = explode(',', $value);
-    $para_entity->setHostEntity('node', $entity);
-    if ($field_info['cardinality'] >= 1) {
-      // Attach to multiple allowed values field.
-      foreach ($s_values as $key => $field_val) {
-        if (!empty($field_val)) {
-          if (strpos($field_val, 'd') !== FALSE) {
-            $cleaned = str_replace('d', '', $field_val);
-            $complete_val = ['interval' => $cleaned, 'period' => 'day'];
-            $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
-          }
-          elseif (strpos($field_val, 'h') !== FALSE) {
-            $cleaned = str_replace('h', '', $field_val);
-            $complete_val = ['interval' => $cleaned, 'period' => 'hour'];
-            $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
-          }
-          elseif (strpos($field_val, 'm') !== FALSE) {
-            $cleaned = str_replace('m', '', $field_val);
-            $complete_val = ['interval' => $cleaned, 'period' => 'minute'];
-            $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
+    if ($para_entity && !empty($value)) {
+      $s_values = explode(',', $value);
+      $para_entity->setHostEntity('node', $entity);
+      if ($field_info['cardinality'] >= 1) {
+        // Attach to multiple allowed values field.
+        foreach ($s_values as $key => $field_val) {
+          if (!empty($field_val)) {
+            if (strpos($field_val, 'd') !== FALSE) {
+              $cleaned = str_replace('d', '', $field_val);
+              $complete_val = ['interval' => $cleaned, 'period' => 'day'];
+              $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
+            }
+            elseif (strpos($field_val, 'h') !== FALSE) {
+              $cleaned = str_replace('h', '', $field_val);
+              $complete_val = ['interval' => $cleaned, 'period' => 'hour'];
+              $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
+            }
+            elseif (strpos($field_val, 'm') !== FALSE) {
+              $cleaned = str_replace('m', '', $field_val);
+              $complete_val = ['interval' => $cleaned, 'period' => 'minute'];
+              $para_entity->{$mapping['selected_sub_target']}['und'][$key] = $complete_val;
+            }
           }
         }
       }
+      $para_entity->save();
+      feeds_para_mapper_cleanup($mapping, $entity);
     }
-    $para_entity->save();
-    feeds_para_mapper_cleanup($mapping, $entity);
   }
 
   /**
@@ -173,24 +280,26 @@
    *   The newly created paragraph entity.
    */
   function feeds_para_mapper_save_list_type(array $field_info, array $mapping, $value, $entity, $para_entity) {
-    $s_values = explode(',', $value);
-    $para_entity->setHostEntity('node', $entity);
-    if ($field_info['cardinality'] === "-1") {
-      // Attach to  multiple allowed values field.
-      foreach ($s_values as $key => $field_val) {
-        if (!empty($field_val)) {
-          $para_entity->{$mapping['selected_sub_target']}['und'][$key]['value'] = $field_val;
-        }
-      }
+    if ($para_entity && !empty($value)) {
+      $s_values = explode(',', $value);
       $para_entity->setHostEntity('node', $entity);
-    }
-    else {
-      for ($i = 0; $i <= $field_info['cardinality']; $i++) {
-        $para_entity->{$mapping['selected_sub_target']}['und'][$i]['value'] = $s_values[$i];
+      if ($field_info['cardinality'] === "-1") {
+        // Attach to  multiple allowed values field.
+        foreach ($s_values as $key => $field_val) {
+          if (!empty($field_val)) {
+            $para_entity->{$mapping['selected_sub_target']}['und'][$key]['value'] = $field_val;
+          }
+        }
+        $para_entity->setHostEntity('node', $entity);
       }
-      $para_entity->save();
+      else {
+        for ($i = 0; $i <= $field_info['cardinality']; $i++) {
+          $para_entity->{$mapping['selected_sub_target']}['und'][$i]['value'] = $s_values[$i];
+        }
+        $para_entity->save();
+      }
+      feeds_para_mapper_cleanup($mapping, $entity);
     }
-    feeds_para_mapper_cleanup($mapping, $entity);
   }
 
   /**
@@ -208,31 +317,33 @@
    *   The newly created paragraph entity.
    */
   function feeds_para_mapper_save_tax_terms_type(array $field_info, array $mapping, $value, $entity, $para_entity) {
-    $field_type = $field_info['type'];
-    if ($field_type == 'taxonomy_term_reference') {
-      $s_values = explode(',', $value);
-      $para_entity->setHostEntity('node', $entity);
-      if ($field_info['cardinality'] === "-1") {
-        // Attach to  multiple allowed values field.
-        foreach ($s_values as $key => $field_val) {
-          $my_term = taxonomy_term_load($field_val);
-          if ($mapping['default_voc'] == $my_term->vid) {
-            $para_entity->{$mapping['selected_sub_target']}['und'][$key]['tid'] = $field_val;
+    if ($para_entity && !empty($value)) {
+      $field_type = $field_info['type'];
+      if ($field_type == 'taxonomy_term_reference') {
+        $s_values = explode(',', $value);
+        $para_entity->setHostEntity('node', $entity);
+        if ($field_info['cardinality'] === "-1") {
+          // Attach to  multiple allowed values field.
+          foreach ($s_values as $key => $field_val) {
+            $my_term = taxonomy_term_load($field_val);
+            if ($mapping['default_voc'] == $my_term->vid) {
+              $para_entity->{$mapping['selected_sub_target']}['und'][$key]['tid'] = $field_val;
+            }
           }
+          $para_entity->save();
         }
-        $para_entity->save();
-      }
-      else {
-        for ($i = 0; $i <= $field_info['cardinality']; $i++) {
-          $my_term = taxonomy_term_load($s_values[$i]);
-          if ($mapping['default_voc'] == $my_term->vid) {
-            $para_entity->{$mapping['selected_sub_target']}['und'][$i]['tid'] = $s_values[$i];
+        else {
+          for ($i = 0; $i <= $field_info['cardinality']; $i++) {
+            $my_term = taxonomy_term_load($s_values[$i]);
+            if ($mapping['default_voc'] == $my_term->vid) {
+              $para_entity->{$mapping['selected_sub_target']}['und'][$i]['tid'] = $s_values[$i];
+            }
           }
+          $para_entity->save();
         }
-        $para_entity->save();
       }
+      feeds_para_mapper_cleanup($mapping, $entity);
     }
-    feeds_para_mapper_cleanup($mapping, $entity);
   }
 
   /**
@@ -379,28 +490,24 @@
    *   The founded fields.
    */
   function feeds_para_get_para_bundle_fields(array $target) {
-    /* todo: note that the paragraph bundle machine name should
-     * contain some of the field machine name that is associated
-     *  with the target node.
-     */
-    $fields_list = field_info_field_map();
+    $fields = field_info_field_map();
+    $m_n = $target['field_info']['machine_name'];
+    $c_t = $target['field_info']['bundle'];
+    $f_in = field_info_instance('node', $m_n, $c_t);
+    $a_b = array_values($f_in['settings']['allowed_bundles']);
     $para_assoc_fields = [];
-    // Look up all associated fields.
-    foreach ($fields_list as $key => $aField) {
-      if (isset($aField['bundles']['paragraphs_item'])) {
-        foreach ($aField['bundles']['paragraphs_item'] as $bundleKey => $field_bundle) {
-          $org_bundle = $field_bundle;
-          $field_bundle_mod = str_replace('field_', '', $field_bundle);
-          $bundle_name_ports = explode('_', $field_bundle_mod);
-          foreach ($bundle_name_ports as $port) {
-            if (strpos($target['field_info']['machine_name'], $port) !== FALSE) {
-              $aField['machine_name'] = $key;
-              $retField = field_info_instance(
-                'paragraphs_item',
-                $key,
-                $org_bundle);
-              $aField['label'] = $retField['label'];
-              array_push($para_assoc_fields, $aField);
+    // Lookup all associated fields.
+    foreach ($fields as $key => $field) {
+      foreach ($field['bundles'] as $b_type => $as_bundles) {
+        if ($b_type === 'paragraphs_item') {
+          foreach ($as_bundles as $p_b) {
+            foreach ($a_b as $a_b_i) {
+              if ($a_b_i === $p_b) {
+                $in = field_info_instance('paragraphs_item', $key, $p_b);
+                $field['machine_name'] = $key;
+                $field['label'] = $in['label'];
+                array_push($para_assoc_fields, $field);
+              }
             }
           }
         }
@@ -483,14 +590,12 @@
       $item->revision = TRUE;
       $item->default_revision = $item->revision_id;
     }
-    if (!$item && isset($info['bundles']['paragraphs_item'])) {
-      $correct_bundle = feeds_para_mapper_find_target_bundle($info, $mapping);
-      if ($correct_bundle) {
-        $item = entity_create('paragraphs_item', [
-          'bundle' => $correct_bundle,
-          'field_name' => $mapping['selected_bundle'],
-        ]);
-      }
+    if (!$item) {
+      $correct_bundle = $info['bundles']['paragraphs_item'][0];
+      $item = entity_create('paragraphs_item', [
+        'bundle' => $correct_bundle,
+        'field_name' => $mapping['selected_bundle'],
+      ]);
     }
     return $item;
   }
@@ -516,32 +621,6 @@
   }
 
   /**
-   * Searches for the bundle that is associated with the target field.
-   *
-   * @param array $info
-   *   The target field that is being mapped to.
-   * @param array $mapping
-   *   Contains the settings form fields values.
-   *
-   * @return string
-   *   The founded bundle.
-   */
-  function feeds_para_mapper_find_target_bundle(array $info, array $mapping) {
-    $s_bundle = str_replace("field_", "", $mapping['selected_bundle']);
-    $s_bundle_ports = explode('_', $s_bundle);
-    $current_bundles = $info['bundles']['paragraphs_item'];
-    $found = NULL;
-    foreach ($s_bundle_ports as $s_bundle) {
-      foreach ($current_bundles as $avBundle) {
-        if (strpos($avBundle, $s_bundle) !== FALSE) {
-          $found = $avBundle;
-        }
-      }
-    }
-    return $found;
-  }
-
-  /**
    * Removes all associated paragraphs and keep the last one.
    *
    * @param array $mapping
@@ -552,11 +631,87 @@
   function feeds_para_mapper_cleanup(array $mapping, $entity) {
     if ($has_para = feeds_para_mapper_has_paragraph($entity, $mapping)) {
       $paras = $entity->{$mapping['selected_bundle']}['und'];
-      $paras_keys = array_keys($paras);
-      $last_key = end($paras_keys);
-      foreach ($paras_keys as $key) {
-        if ($key !== $last_key) {
-          $entity->{$mapping['selected_bundle']}['und'][$key] = NULL;
+      $last_para = end($paras);
+      unset($entity->{$mapping['selected_bundle']}['und']);
+      $new_item = [
+        'und' => [$last_para],
+      ];
+      $entity->{$mapping['selected_bundle']} = $new_item;
+    }
+  }
+
+  /**
+   * Gets a file from URL or local path.
+   *
+   * @param string $url
+   *   The url of the file.
+   *
+   * @return MIXED
+   *   object of the file if founded or uploaded, FALSE if failed.
+   */
+  function feeds_para_mapper_get_file($url) {
+    $valid = filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED);
+    $is_image = function ($url) {
+      $i_ext = ['jpg', 'jpeg', 'tiff', 'png', 'icon', 'ico'];
+      $ext = end(explode('.', $url));
+      foreach ($i_ext as $v_ext) {
+        if ($ext === $v_ext) {
+          return TRUE;
+        }
+      }
+      return FALSE;
+    };
+    if ($valid) {
+      // Download remote file.
+      $file = system_retrieve_file($url, NULL, TRUE, FILE_EXISTS_REPLACE);
+      if ($file) {
+        if (!$is_image($url)) {
+          $file->display = 1;
+        }
+        return $file;
+      }
+      else {
+        drupal_set_message("Error retrieving file " . $url, 'error');
+        return FALSE;
+      }
+    }
+    else {
+      // If file is saved locally and exists in db:
+      $files = file_load_multiple([], ['uri' => $url]);
+      if ($files && count($files) > 0) {
+        return array_values($files)[0];
+      }
+      else {
+        // Doesn't exist on db, check if exist locally, load and save it:
+        if (file_exists($url)) {
+          $content = file_get_contents($url);
+          if (strlen($content) > 0) {
+            $file = file_save_data($content, NULL, FILE_EXISTS_REPLACE);
+            if ($file && is_object($file)) {
+              $name = explode('//', $url);
+              $file->filemime = file_get_mimetype($url);
+              $file->filename = $name[1];
+              $file->uri = $url;
+              $file->status = FILE_STATUS_PERMANENT;
+              if (!$is_image($url)) {
+                $file->display = 1;
+              }
+              $file = file_save($file);
+              return $file;
+            }
+            else {
+              drupal_set_message('File ' . $url . " couldn't be saved", 'error');
+              return FALSE;
+            }
+          }
+          else {
+            drupal_set_message('File ' . $url . " not valid", 'error');
+            return FALSE;
+          }
+        }
+        else {
+          drupal_set_message('File ' . $url . " doesn't exist", 'error');
+          return FALSE;
         }
       }
     }
