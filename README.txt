@@ -1,5 +1,5 @@
 
-Copyright 2017 Hussein El-hussein
+Copyright 2018 Hussein El-hussein
 
 
 Description
@@ -16,7 +16,8 @@ Features:
 * Mapping to image field
 * Mapping to file field
 * Mapping to list of type taxonomy terms
-* Note: currently it only maps a single value to a field, except for taxonomy terms.
+* Mapping multiple values to a field
+* Mapping to multiple Paragraphs bundles
 
 Dependencies
 -------------
@@ -37,7 +38,8 @@ To enable this module, visit administer -> modules, and enable Paragraphs Mapper
 
 Usage
 -------------
-* For mapping multiple taxonomy terms, the terms must be separated by comma.
+* You should always configure the field when it's added.
+* For mapping multiple values, configure the separator in the field settings.
 * For mapping to a boolean field, the value must be numeric (0 or 1), or string (true,false).
 * For mapping to a file field, the value must be link to a local file (public://file.pdf), or remote file (http://example.com/file.pdf).
 * Same goes for image field.
