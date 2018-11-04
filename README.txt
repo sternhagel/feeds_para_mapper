@@ -8,16 +8,13 @@ This module allows mapping to Paragraphs fields.
 
 Features:
 ---------
-* Mapping to "Text" & "Long Text"
-* Mapping to "Interval" field (Interval Module)
-* Mapping to "Text List" & "Integer List"
-* Mapping to all numeric fields
-* Mapping to boolean field
-* Mapping to image field
-* Mapping to file field
-* Mapping to list of type taxonomy terms
-* Mapping multiple values to a field
-* Mapping to multiple Paragraphs bundles
+* Supports mapping to nested Paragraphs fields.
+* Supports mapping to multi-valued Paragraphs fields.
+* Supports updating Paragraphs fields values.
+Note: As long as the field you are trying to map to supports feeds,
+then this module supports it, for example,
+Interval field does not, it needs patching, see:
+https://www.drupal.org/project/interval/issues/2032715
 
 Dependencies
 -------------
@@ -28,26 +25,21 @@ This module requires the following modules:
 
 Installation
 ------------
-To install, copy the feeds_para_mapper directory and all its contents to your modules
-directory.
+To install, copy the feeds_para_mapper directory,
+and all its contents to your modules directory.
 
 Configuration
 -------------
 It has no configuration page.
-To enable this module, visit administer -> modules, and enable Paragraphs Mapper.
+To enable this module:
+visit administer -> modules, and enable Paragraphs Mapper.
 
 Usage
 -------------
-* You should always configure the field when it's added.
-* For mapping multiple values, configure the separator in the field settings.
-* For mapping to a boolean field, the value must be numeric (0 or 1), or string (true,false).
-* For mapping to a file field, the value must be link to a local file (public://file.pdf), or remote file (http://example.com/file.pdf).
-* Same goes for image field.
-Note: in case you had issue grabbing remote files, search for this line in php.ini:
-allow_url_fopen = Off
-then edit it so it becomes like this:
-allow_url_fopen = On
-restart apache afterwards
+For mapping multiple values, use Feeds Tamper:
+https://www.drupal.org/project/feeds_tamper
+And follow this guide:
+https://www.drupal.org/node/2287473
 
 Author
 ------
