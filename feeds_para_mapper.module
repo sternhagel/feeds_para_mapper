@@ -520,54 +520,6 @@ function feeds_para_mapper_set_value(\FeedsSource $source, $entity, \ParagraphsI
 }
 
 /**
- * Check if the field has sub fields and returns them.
- *
- * We need this because a field module sometimes sets its targets like
- * field:sub_field
- * field:another_sub_field.
- *
- * @param array $mapping
- *   Information about the target field and the target paragraph.
- * @param object $entity
- *   If supplied, the array will contain values.
- *
- * @return array|null
- *   The sub targets along with their values.
- */
-function feeds_para_mapper_get_sub_targets(array $mapping, $entity = NULL) {
-  $target = $mapping['target'];
-  $real_target = $mapping['field'];
-  if ($target === $real_target) {
-    return NULL;
-  }
-  $targets = feeds_para_mapper_call_targets_form_hook($mapping);
-  $targets = array_keys($targets);
-  $sub_fields = array();
-  foreach ($targets as $module_target) {
-    list($field, $sub_field) = explode(':', $module_target);
-    if (isset($sub_field)) {
-      $item = array(
-        'name' => $sub_field,
-      );
-      $sub_fields[] = $item;
-    }
-  }
-  if (isset($entity) && isset($entity->{$real_target})) {
-    foreach ($sub_fields as $key => $sub_field) {
-      $lang = $mapping['language'];
-      $values = array();
-      foreach ($entity->{$real_target}[$lang] as $value) {
-        if (isset($value[$sub_field['name']])) {
-          $values[] = $value[$sub_field['name']];
-        }
-      }
-      $sub_fields[$key]['values'] = $values;
-    }
-  }
-  return $sub_fields;
-}
-
-/**
  * Initializes the mapping array.
  *
  * @param object $entity
@@ -1027,7 +979,6 @@ function feeds_para_mapper_duplicate_existing(array $mapping, $entity, \Paragrap
   $parents = $mapping['path'];
   $p = feeds_para_mapper_remove_existing_parents($entity, $mapping, $parents);
   $parents = $p['parents'];
-  $first = NULL;
   $parents = array_filter($parents, function ($item) {
     return isset($item['host_entity']);
   });
@@ -1082,7 +1033,7 @@ function feeds_para_mapper_duplicate_existing(array $mapping, $entity, \Paragrap
  */
 function feeds_para_mapper_remove_existing_parents($entity, array $mapping, array $parents) {
   $lang = $mapping['language'];
-  $findByField = function ($entity, $field, $path = []) use ($parents, $lang, &$findByField) {
+  $findByField = function ($entity, $field, $path = []) use ($lang, &$findByField) {
     $p_c = ParagraphsItemEntity::class;
     $found = NULL;
     if (get_class($entity) === $p_c) {
@@ -1271,14 +1222,11 @@ function feeds_para_mapper_feeds_presave(FeedsSource $source, $entity, $item, $e
       drupal_set_message($message, 'error');
       drupal_set_message($exception, 'error');
     }
+    return NULL;
   };
   $toUpdate = array();
-  $new = array();
   foreach ($entity->updates as $update) {
-    if (isset($update['paragraph']->is_new)) {
-      $new[] = $update;
-    }
-    else {
+    if (!isset($update['paragraph']->is_new)) {
       $toUpdate[] = $update;
     }
   }

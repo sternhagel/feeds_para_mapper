@@ -8,7 +8,7 @@
 /**
  * Tests mapping a single value to a Paragraphs field.
  */
-class MappingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperMappingTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -38,7 +38,7 @@ class MappingTestCase extends ParagraphsMapperWebTestCase {
 /**
  * Tests mapping to a nested Paragraphs field.
  */
-class NestedMappingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperNestedMappingTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -75,7 +75,7 @@ class NestedMappingTestCase extends ParagraphsMapperWebTestCase {
 /**
  * Tests mapping to a multi-valued Paragraphs field.
  */
-class MultiValuedMappingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperMultiValuedMappingTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.

@@ -2,11 +2,11 @@
 Copyright 2018 Hussein El-hussein
 
 
-Description
+INTRODUCTION
 -----------
 This module allows mapping to Paragraphs fields.
 
-Features:
+FEATURES:
 ---------
 * Supports mapping to nested Paragraphs fields.
 * Supports mapping to multi-valued Paragraphs fields.
@@ -16,25 +16,25 @@ then this module supports it, for example,
 Interval field does not, it needs patching, see:
 https://www.drupal.org/project/interval/issues/2032715
 
-Dependencies
+REQUIREMENTS
 -------------
 This module requires the following modules:
 
 * Feeds (https://drupal.org/project/feeds)
 * Paragraphs (https://drupal.org/project/paragraphs)
 
-Installation
+INSTALLATION
 ------------
 To install, copy the feeds_para_mapper directory,
 and all its contents to your modules directory.
 
-Configuration
+CONFIGURATION
 -------------
 It has no configuration page.
 To enable this module:
 visit administer -> modules, and enable Paragraphs Mapper.
 
-Usage
+USAGE
 -------------
 For mapping multiple values, use Feeds Tamper:
 https://www.drupal.org/project/feeds_tamper

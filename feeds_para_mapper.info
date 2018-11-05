@@ -8,6 +8,6 @@ dependencies[] = paragraphs (7.x-1.0-rc5)
 ;tests
 test_dependencies[] = feeds:7.x-2.0-beta4
 test_dependencies[] = paragraphs:7.x-1.0-rc5
-files[] = tests/feeds_para_mapper.test
+files[] = tests/FeedsParaMapperWebTestCase.test
 files[] = tests/mapping.test
 files[] = tests/importing.test

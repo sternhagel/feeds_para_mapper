@@ -8,7 +8,7 @@
 /**
  * Tests importing a single value to a content type with a Paragraphs field.
  */
-class ImportingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperSingleValueTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -83,7 +83,7 @@ class ImportingTestCase extends ParagraphsMapperWebTestCase {
 /**
  * Tests importing to a content type with a nested Paragraphs field.
  */
-class NestedImportingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperNestedImportTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -161,7 +161,7 @@ class NestedImportingTestCase extends ParagraphsMapperWebTestCase {
 /**
  * Tests importing to a content type with a nested Paragraphs field.
  */
-class MultiValuedImportingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperMultiValuedImportingTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -184,7 +184,7 @@ class MultiValuedImportingTestCase extends ParagraphsMapperWebTestCase {
   /**
    * Test importing nodes with multi-valued paragraphs fields.
    *
-   * @see \ParagraphsMapperWebTestCase::multiImport()
+   * @see \FeedsParaMapperWebTestCase::multiImport()
    */
   protected function testMultiValuedImport() {
     $expected_values = array(
@@ -225,7 +225,7 @@ class MultiValuedImportingTestCase extends ParagraphsMapperWebTestCase {
 /**
  * Tests updating Paragraphs fields values.
  */
-class UpdatingTestCase extends ParagraphsMapperWebTestCase {
+class FeedsParaMapperUpdatingTestCase extends FeedsParaMapperWebTestCase {
 
   /**
    * Lets SimpleTest knows about this test class.
@@ -248,7 +248,7 @@ class UpdatingTestCase extends ParagraphsMapperWebTestCase {
   /**
    * Test importing nodes with multi-valued paragraphs fields.
    *
-   * @see \ParagraphsMapperWebTestCase::multiImport()
+   * @see \FeedsParaMapperWebTestCase::multiImport()
    */
   protected function testMultiValuedUpdate() {
     $expected_values = array(

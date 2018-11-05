@@ -8,7 +8,7 @@
 /**
  * Test basic functionality via DrupalWebTestCase.
  */
-class ParagraphsMapperWebTestCase extends DrupalWebTestCase {
+class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
   protected $webUser;
   protected $profile = 'testing';
   protected $bundles;
@@ -543,7 +543,6 @@ class ParagraphsMapperWebTestCase extends DrupalWebTestCase {
       }
     }
     else {
-      $stop = NULL;
       $keys = get_object_vars($paragraph);
       foreach ($keys as $key) {
         if (is_array($key) && isset($key[$lang]) && is_array($key[$lang])) {
