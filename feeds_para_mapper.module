@@ -395,22 +395,19 @@ function feeds_para_mapper_summary_callback(array $mapping, array $target, array
  *   The maximum values
  */
 function feeds_para_mapper_get_max_values($target, array $mapping = array()) {
-  $res = NULL;
   $info = field_info_field($target);
-  $cardinality = (int) $info['cardinality'];
-  if (isset($mapping['max_values'])) {
-    $unlimited = $cardinality === -1;
-    $max_value = (int) $mapping['max_values'];
-    $valid = $max_value >= -1 && $max_value !== 0;
-    if ($max_value <= $cardinality && $valid || ($unlimited && -1 <= $max_value && $valid)) {
-      $res = $max_value;
-    }
-    else {
-      $res = $cardinality;
-    }
+  $crd = (int) $info['cardinality'];
+  if (!isset($mapping['max_values'])) {
+    return $crd;
+  }
+  $unlimited = $crd === -1;
+  $max_values = (int) $mapping['max_values'];
+  $valid = $max_values <= $crd && !$unlimited && !($max_values < 0 && $crd > 0) || $unlimited && $max_values >= -1;
+  if ($valid) {
+    $res = $max_values;
   }
   else {
-    $res = $cardinality;
+    $res = $crd;
   }
   return $res;
 }
