@@ -593,6 +593,9 @@ function feeds_para_mapper_init_mapping($entity, array $mapping) {
   $mapping['module'] = $f_target['module'];
   $mapping['type'] = $f_target['type'];
   $mapping['module_callback'] = $f_target['module_callback'];
+  if (isset($f_target['real_target'])) {
+    $mapping['real_target'] = $f_target['real_target'];
+  }
   if (isset($f_target['path'])) {
     $mapping['path'] = $f_target['path'];
   }
@@ -901,6 +904,10 @@ function feeds_para_mapper_should_create_new($entity, array $mapping, array $sli
   // If the parent or the child entity can hold more values (children),
   // and the child cannot hold values, we should:
   if (count($current_values) < count($slices) && $allowed > count($current_values) && $exceeded) {
+    return TRUE;
+  }
+  // Now all validation passes, if the host field is unlimited, then it can hold more values:
+  if ($skip_check) {
     return TRUE;
   }
   return FALSE;
