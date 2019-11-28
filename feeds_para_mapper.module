@@ -5,44 +5,6 @@
  * Allows feeds to import content to Paragraphs' fields.
  */
 
-/**
- * Implements hook_help().
- */
-function feeds_para_mapper_help($path, $arg) {
-  switch ($path) {
-    case 'admin/help#feeds_para_mapper':
-
-      $filepath = dirname(__FILE__) . '/README.md';
-      if (file_exists($filepath)) {
-        $readme = file_get_contents($filepath);
-      }
-      else {
-        $filepath = dirname(__FILE__) . '/README.txt';
-        if (file_exists($filepath)) {
-          $readme = file_get_contents($filepath);
-        }
-      }
-      if (!isset($readme)) {
-        return NULL;
-      }
-      if (module_exists('markdown')) {
-        $filters = module_invoke('markdown', 'filter_info');
-        $info = $filters['filter_markdown'];
-
-        if (function_exists($info['process callback'])) {
-          $output = $info['process callback']($readme, NULL);
-        }
-        else {
-          $output = '<pre>' . $readme . '</pre>';
-        }
-      }
-      else {
-        $output = '<pre>' . $readme . '</pre>';
-      }
-
-      return $output;
-  }
-}
 
 /**
  * Implements hook_feeds_processor_targets().
@@ -79,10 +41,10 @@ function feeds_para_mapper_feeds_processor_targets($entity_type, $bundle, $with_
     foreach ($sub_fields as $sub_field) {
       $module_targets = feeds_para_mapper_call_targets_form_hook($sub_field);
       foreach ($module_targets as $name => $target) {
-        $targetF = array_filter($sub_fields, ($item) ($name){
-          $containsKey = strpos($name, $item['machine_name']) !== FALSE
-          $sameKey = $item['machine_name'] === $name
-          $containsKey || $sameKey
+        $targetF = array_filter($sub_fields, function ($item) use ($name){
+          $containsKey = strpos($name, $item['machine_name']) !== FALSE;
+          $sameKey = $item['machine_name'] === $name;
+          return $containsKey || $sameKey;
         });
         if (count($targetF)) {
           $targetF = reset($targetF);
@@ -224,42 +186,42 @@ function feeds_para_mapper_build_path(array $field, array $first_host) {
     $bundles[$name]['fields'] = $fields;
   }
   $field_bundle = NULL;
-  $getFieldBundle = ($field) ($bundles){
-    ($bundles $bundle){
-      ($bundle['fields'] $b_field){
-        ($b_field['field_name'] === $field['field_name']){
-          $bundle
+  $getFieldBundle = function ($field) use ($bundles){
+    foreach ($bundles as $bundle){
+      foreach ($bundle['fields'] as $b_field){
+        if ($b_field['field_name'] === $field['field_name']){
+          return $bundle;
         }
       }
     }
-    NULL
+    return NULL;
   };
-  $getHost = ($field_bundle) ($bundles){
-    ($bundles $bundle){
-      ($bundle['fields'] $b_field){
-        (isset($b_field['settings']['allowed_bundles'])){
-          ($b_field['settings']['allowed_bundles'] $allowed_bundle){
-            ($allowed_bundle === $field_bundle['name']){
+  $getHost = function ($field_bundle) use ($bundles){
+    foreach ($bundles as $bundle){
+      foreach ($bundle['fields'] as $b_field){
+        if (isset($b_field['settings']['allowed_bundles'])){
+          foreach ($b_field['settings']['allowed_bundles'] as $allowed_bundle){
+            if ($allowed_bundle === $field_bundle['name']){
               /*
               Get the allowed bundle and set it as the host bundle.
               This grabs the first allowed bundle,
               and might cause issues with multiple bundles field.
               todo: Test with multiple bundles field.
                */
-              $allowed = array_filter($bundles, ($item) ($allowed_bundle){
-                $item['name'] === $allowed_bundle
-              })
-              $allowed = array_values($allowed)
-              array(
-    'bundle' => $allowed[0],
-    'host_field' => $b_field,
-  )
+              $allowed = array_filter($bundles, function ($item) use ($allowed_bundle){
+                return $item['name'] === $allowed_bundle;
+              });
+              $allowed = array_values($allowed);
+              return array(
+                'bundle' => $allowed[0],
+                'host_field' => $b_field,
+              );
             }
           }
         }
       }
     }
-    NULL
+    return NULL;
   };
   // Start building the path:
   $path = array();
@@ -428,8 +390,8 @@ function feeds_para_mapper_call_targets_form_hook(array $field) {
   $alter_hook = "feeds_processor_targets_alter";
   $targets = array();
   $args =[
-    'paragraphs_item'
-    $field['paragraph_bundle']
+    'paragraphs_item',
+    $field['paragraph_bundle'],
   ];
   $field = feeds_para_mapper_get_correct_module_name($field);
   if (module_hook($field['module'], $hook)) {
@@ -493,8 +455,8 @@ function feeds_para_mapper_set_target(FeedsSource $source, $entity, $target, arr
   $mapping = feeds_para_mapper_init_mapping($entity, $mapping);
   // Check if the field module support Feeds.
   if (!function_exists($mapping['module_callback'])) {
-    $message = t('Field @field does not support Feeds', ['@field' $mapping['field']]);
-    drupal_set_message($message, 'error');
+    $message = t('Field @field does not support Feeds', ['@field' => $mapping['field']]);
+    backdrop_set_message($message, 'error');
     return;
   }
   // Create empty paragraphs or get the currently attached to the entity.
@@ -544,11 +506,11 @@ function feeds_para_mapper_set_value(FeedsSource $source, $entity, ParagraphsIte
     $paragraph->{$field}[$lang] = array();
   }
   $args =[
-    $source
-    $paragraph
-    $correct_field
-    $value
-    $mapping
+    $source,
+    $paragraph,
+    $correct_field,
+    $value,
+    $mapping,
   ];
   $function = $mapping['module_callback'];
   call_user_func($function, $args[0], $args[1], $args[2], $args[3], $args[4]);
@@ -572,7 +534,7 @@ function feeds_para_mapper_init_mapping($entity, array $mapping) {
   $type = $entity->feeds_item->entity_type;
   $bundle = $entity->type;
   // Get list of the target fields.
-  $cache = &drupal_static(__FUNCTION__);
+  $cache = &backdrop_static(__FUNCTION__);
   if (!isset($cache['targets'])) {
     // If the list is not cached, add it to cache.
     $cache['targets'] = feeds_para_mapper_feeds_processor_targets($type, $bundle, TRUE);
@@ -929,45 +891,451 @@ function feeds_para_mapper_should_create_new($entity, array $mapping, array $sli
 function feeds_para_mapper_check_values_changes(array $mapping, array $slices, array $entities) {
   $target = $mapping['target'];
   $lang = $mapping['language'];
-  $getParagraph = ($index) ($entities){
-    (isset($entities[$index])){
-      $entities[$index]
+  $getParagraph = function ($index) use ($entities) {
+    if (isset($entities[$index])) {
+      return $entities[$index];
     }
-    NULL
+    return NULL;
   };
-  $getValuesState(count($foundValues <> count($chunk)){
-      $state = "changed"
+  $getValuesState = function ($chunk, $paragraph) use ($target, $lang) {
+    $state = "new";
+    if (!isset($paragraph)) {
+      return $state;
     }
-    {
-      $state = "unchanged"
+    if (!isset($paragraph->{$target})) {
+      return "shareable";
     }
-    $state);
-}
-for ($i = 0; $i < count($slices); $i++) {
-  $par = $getParagraph($i);
-  $state = $getValuesState($slices[$i], $par);
-  $slices[$i]['state'] = $state;
-}
-// Search for empty paragraphs:
-for ($i = 0; $i < count($entities); $i++) {
-  $has_common = FALSE;
-  if (isset($mapping['in_common'])) {
-    $has_common = TRUE;
-    $empty_commons = array();
-    foreach ($mapping['in_common'] as $field) {
-      if (!isset($entities[$i]->{$field})) {
-        $empty_commons[] = $field;
+    $foundValues = array();
+    foreach ($chunk as $chunkVal) {
+      foreach ($paragraph->{$target}[$lang] as $value) {
+        $found = FALSE;
+        foreach ($value as $prop) {
+          if ($prop === $chunkVal && !$found) {
+            $found = TRUE;
+            $foundValues[] = $prop;
+          }
+        }
       }
     }
-    // If all other fields are empty, we should delete this entity:
-    if (count($empty_commons) === count($mapping['in_common'])) {
-      $has_common = FALSE;
+    if (count($foundValues) <> count($chunk)) {
+      $state = "changed";
+    }
+    else {
+      $state = "unchanged";
+    }
+    return $state;
+  };
+  for ($i = 0; $i < count($slices); $i++) {
+    $par = $getParagraph($i);
+    $state = $getValuesState($slices[$i], $par);
+    $slices[$i]['state'] = $state;
+  }
+  // Search for empty paragraphs:
+  for ($i = 0; $i < count($entities); $i++) {
+    $has_common = FALSE;
+    if (isset($mapping['in_common'])) {
+      $has_common = TRUE;
+      $empty_commons = array();
+      foreach ($mapping['in_common'] as $field) {
+        if (!isset($entities[$i]->{$field})) {
+          $empty_commons[] = $field;
+        }
+      }
+      // If all other fields are empty, we should delete this entity:
+      if (count($empty_commons) === count($mapping['in_common'])) {
+        $has_common = FALSE;
+      }
+    }
+    if (!isset($slices[$i]) && !$has_common) {
+      $slices[$i] = array(
+        'state' => 'remove',
+      );
     }
   }
-  if (!isset($slices[$i]) && !$has_common) {
-    $slices[$i] = array(
-      'state' => 'remove',
-    );
+  return $slices;
+}
+
+/**
+ * Creates a paragraph entity and its parents.
+ *
+ * @param array $mapping
+ *   Information about the target field and the target paragraph.
+ * @param object $entity
+ *   The entity that is being edited or created.
+ *
+ * @return \ParagraphsItemEntity
+ *   The created paragraph entity.
+ */
+function feeds_para_mapper_create_parents(array $mapping, $entity) {
+  if(isset($GLOBALS['call_count'])){
+    $GLOBALS['call_count']++;
+  }else{
+    $GLOBALS['call_count'] = 1;
+  }
+  if($GLOBALS['call_count'] === 2){
+    $stop = null;
+  }
+  $parents = $mapping['path'];
+  $or_count = count($parents);
+  $p = feeds_para_mapper_remove_existing_parents($entity, $mapping, $parents);
+  $parents = $p['parents'];
+  $first = NULL;
+  $last = $entity;
+  if (count($parents) < $or_count) {
+    $last = end($p['removed']);
+  }
+  // For first bundle fields, determine the real host:
+  if (!isset($mapping['host_field'])) {
+    $filtered = array_filter($parents, function ($item) use ($mapping) {
+      return $item['host_field'] === $mapping['ctype_field'];
+    });
+    if (count($filtered)) {
+      $parents = [];
+      $parents[] = $filtered[0];
+    }
+  }
+  if(empty($parents)){
+    $parents[] = end($mapping['path']);
+  }
+  $parents = array_filter($parents, function ($item) {
+    return isset($item['host_entity']);
+  });
+  foreach ($parents as $parent) {
+    $last = feeds_para_mapper_create_paragraph($parent['bundle'], $parent['host_field'], $last, $parent['host_entity']);
+    if (!isset($first)) {
+      $first = $last;
+    }
+  }
+  return $first;
+}
+
+/**
+ * Creates and attaches a Paragraphs entity to another entity.
+ *
+ * @param string $bundle
+ *   The target bundle.
+ * @param string $field
+ *   The host field.
+ * @param object $host_entity
+ *   The host entity.
+ * @param string $host_type
+ *   The host type.
+ *
+ * @return \ParagraphsItemEntity
+ *   The created Paragraphs entity
+ */
+function feeds_para_mapper_create_paragraph($bundle, $field, $host_entity, $host_type = "paragraphs_item") {
+  // todo: Test appending to db data:
+  $created = entity_create('paragraphs_item', [
+    'bundle' => $bundle,
+    'field_name' => $field,
+  ]);
+  if ($created instanceof ParagraphsItemEntity) {
+    try {
+      $created->setHostEntity($host_type, $host_entity);
+    }
+    catch (Exception $exception) {
+      $m = t("Could't set host entity");
+      backdrop_set_message($m, 'error');
+      backdrop_set_message(t('%err', ['%err' => $exception]), 'error');
+    }
+  }
+  return $created;
+}
+
+/**
+ * Duplicates an existing paragraph entity.
+ *
+ * @param array $mapping
+ *   Information about the target field and the target paragraph.
+ * @param object $entity
+ *   The entity that is being edited or created.
+ * @param \ParagraphsItemEntity $existing
+ *   The Paragraphs entity to duplicate.
+ *
+ * @return null|\ParagraphsItemEntity
+ *   The duplicated entity, or null on failure.
+ */
+function feeds_para_mapper_duplicate_existing(array $mapping, $entity, \ParagraphsItemEntity $existing) {
+  $parents = $mapping['path'];
+  $p = feeds_para_mapper_remove_existing_parents($entity, $mapping, $parents);
+  $parents = $p['parents'];
+  $parents = array_filter($parents, function ($item) {
+    return isset($item['host_entity']);
+  });
+  $lastKey = count($parents) - 1;
+  $lastP = isset($parents[$lastKey]) ? $parents[$lastKey] : NULL;
+  $parent_field = isset($mapping['host_field']) ? $mapping['host_field'] : $mapping['ctype_field'];
+  $host = NULL;
+  if (isset($lastP) && $existing->field_name === $lastP['host_field']) {
+    $host = $existing->hostEntity();
+  }
+  elseif ($existing->field_name === $parent_field) {
+    if ($parent_field === $mapping['ctype_field']) {
+      $host = $entity;
+    }
+    else {
+      $host = $existing->hostEntity();
+    }
+  }
+  if ($host) {
+    /*
+    When we are inside a create loop,
+    the first found entity must have a value
+    if not, return it to be filled.
+     */
+    $target = $mapping['target'];
+    $new = $entity->feeds_item->is_new;
+    if (!$new && !isset($existing->{$target}) && !isset($existing->to_fill)) {
+      $existing->to_fill = TRUE;
+      return $existing;
+    }
+    // Duplicate entity:
+    $h_type = $existing->hostEntityType();
+    return feeds_para_mapper_create_paragraph($existing->bundle(), $existing->field_name, $host, $h_type);
+  }
+  else {
+    return NULL;
   }
 }
-return $slices;
+
+/**
+ * Remove the created parents of the target field from the parents array.
+ *
+ * @param object $entity
+ *   The entity that we are updating or creating.
+ * @param array $mapping
+ *   Information about the target field and the target paragraph.
+ * @param array $parents
+ *   The parents of the field @see \feeds_para_mapper_build_path().
+ *
+ * @return array
+ *   The non-existing parents array.
+ */
+function feeds_para_mapper_remove_existing_parents($entity, array $mapping, array $parents, $ignore_bundle = FALSE) {
+  $lang = $mapping['language'];
+  $findByField = function ($entity, $field, $bundle, $path = []) use ($lang, &$findByField, $ignore_bundle) {
+    $p_c = ParagraphsItemEntity::class;
+    $found = NULL;
+    if (get_class($entity) === $p_c) {
+      if ($entity->field_name === $field) {
+        if ($ignore_bundle) {
+          return $entity;
+        }
+        else if ($entity->bundle === $bundle) {
+          return $entity;
+        }
+      }
+    }
+    $props = get_object_vars($entity);
+    foreach ($props as $field_name => $prop) {
+      if (is_array($entity->{$field_name})) {
+        $arr = $entity->{$field_name};
+        if (isset($arr[$lang]) && is_array($arr[$lang])) {
+          foreach ($arr[$lang] as $item) {
+            $en = isset($item['entity']);
+            if ($en && is_object($item['entity']) && get_class($item['entity']) === $p_c) {
+              $path[] = $item['entity'];
+              $found = $findByField($item['entity'], $field, $bundle, $path);
+              if ($found) {
+                return $found;
+              }
+            }
+          }
+        }
+      }
+    }
+    return $found;
+  };
+  $removed = [];
+  $to_remove = [];
+  for ($i = 0; $i < count($parents); $i++) {
+    $par = $findByField($entity, $parents[$i]['host_field'], $parents[$i]['bundle']);
+    if ($par) {
+      $removed[] = $par;
+      $to_remove[] = $parents[$i]['host_field'];
+    }
+  }
+  $parents = array_filter($parents, function ($item) use ($to_remove) {
+    return !in_array($item['host_field'], $to_remove);
+  });
+  usort($parents, function ($a, $b) {
+    return ($a['order'] < $b['order']) ? -1 : 1;
+  });
+  return [
+    'parents' => $parents,
+    'removed' => $removed,
+  ];
+}
+
+/**
+ * Searches through nested Paragraphs entities for the target entities.
+ *
+ * @param object|\ParagraphsItemEntity $entity
+ *   A node or paragraph object.
+ * @param array $mapping
+ *   Information about the target field and the target paragraph.
+ * @param bool $emptyOnly
+ *   If true, we return entities where the target field is empty, otherwise we return all.
+ * @param bool $firstResult
+ *   If true, we return the first attached paragraph entity (first parent paragraph).
+ * @param array $result
+ *   The previous result.
+ *
+ * @return array
+ *   The found paragraphs.
+ */
+function feeds_para_mapper_get_target_paragraph($entity, array $mapping, $emptyOnly = FALSE, $firstResult = FALSE ,array $result = array()) {
+  $host_field = $mapping['ctype_field'];
+  $bundle = $mapping['paragraph_bundle'];
+  $lang = $mapping['language'];
+//  if(!isset($mapping['host_field'])){
+//    $lastPath = end($mapping['path']);
+//    $host_field = $lastPath['host_field'];
+//  }
+  $isParagraph = get_class($entity) === ParagraphsItemEntity::class;
+  // Check if nested:
+  if (isset($mapping['host_field'])) {
+    // If the bundle is the same as the target paragraph bundle:
+    if (isset($entity->bundle) && $entity->bundle === $bundle) {
+      // Check that the host field is the same:
+      if ($isParagraph && $entity->field_name === $mapping['host_field']) {
+        if($emptyOnly){
+          $field = $mapping['field'];
+          $values = $entity->{$field};
+          if(!isset($values)){
+            $result[] = $entity;
+          }
+        }else{
+          $result[] = $entity;
+        }
+
+      }
+    }
+    else {
+      $props = get_object_vars($entity);
+      foreach ($props as $prop) {
+        if (is_array($prop) && isset($prop[$lang][0]['entity'])) {
+          foreach ($prop[$lang] as $propVal) {
+            $en = $propVal['entity'];
+            $result = feeds_para_mapper_get_target_paragraph($en, $mapping, $emptyOnly, $result);
+          }
+        }
+      }
+    }
+  }
+  elseif (isset($entity->{$host_field})) {
+    foreach ($entity->{$host_field}[$lang] as $paragraph) {
+      if ($paragraph['entity']->bundle === $bundle) {
+        $result[] = $paragraph['entity'];
+      }
+    }
+  }
+  elseif (get_class($entity) === ParagraphsItemEntity::class) {
+    $result[] = $entity;
+  }
+  return $result;
+}
+
+/**
+ * Loads the existing paragraphs from db.
+ *
+ * @param object $entity
+ *   The host entity.
+ * @param array $mapping
+ *   Information about the target field and the target paragraph.
+ *
+ * @return array
+ *   The loaded Paragraphs entities.
+ */
+function feeds_para_mapper_load_target_paragraph($entity, array $mapping) {
+  $parents = $mapping['path'];
+  // Include only paragraph bundles parents:
+  $parents = array_filter($parents, function ($item) {
+    return isset($item['host_entity']) && $item['host_entity'] === "paragraphs_item";
+  });
+  $parents = array_values($parents);
+  $host_field = $mapping['ctype_field'];
+  $lang = $mapping['language'];
+  $items = array();
+  $loadParagraph = function ($id, $result = array()) use ($mapping, $parents, $lang, &$loadParagraph) {
+    $paragraph = entity_load('paragraphs_item', array($id));
+    $paragraph = reset($paragraph);
+    $target = $mapping['field'];
+    $bundle = $mapping['paragraph_bundle'];
+    if (isset($paragraph)) {
+      if (isset($paragraph->$target) && $paragraph->bundle() === $bundle) {
+        $result[] = $paragraph;
+      }
+      else {
+        foreach ($parents as $parent) {
+          if (isset($paragraph->{$parent['host_field']})) {
+            foreach ($paragraph->{$parent['host_field']}[$lang] as $item_id) {
+              if (isset($item_id['value'])) {
+                $id = $item_id['value'];
+                $result = $loadParagraph($id, $result);
+              }
+            }
+          }
+        }
+      }
+    }
+    return $result;
+  };
+
+  foreach ($entity->{$host_field}[$lang] as $item) {
+    $res = $loadParagraph($item['value']);
+    if (count($res)) {
+      $items = array_merge($items, $res);
+    }
+  }
+  return $items;
+}
+
+/**
+ * Creates a revision of the Paragraphs entity when its values are changed.
+ *
+ * Implements hook_feeds_presave().
+ */
+function feeds_para_mapper_feeds_presave(FeedsSource $source, $entity, $item, $entity_id) {
+  // Throw new Exception("We should not save");
+  // If the entity is old, look for the paragraph item and save changes.
+  if ($entity->feeds_item->is_new || !isset($entity->updates)) {
+    return FALSE;
+  }
+  $doUpdate = function (\ParagraphsItemEntity $item) {
+    $item->revision = TRUE;
+    $item->default_revision = TRUE;
+    try {
+      $parent = $item->hostEntity();
+      if (isset($parent) && get_class($parent) === ParagraphsItemEntity::class) {
+        $item->save();
+      }
+      else {
+        $item->save(TRUE);
+      }
+      $id = array($item->item_id);
+      $paragraph = entity_load('paragraphs_item', $id, array(), TRUE);
+      $paragraph = reset($paragraph);
+      $rev_id = $paragraph->revision_id;
+      return $rev_id;
+    }
+    catch (Exception $exception) {
+      $message = t('Failed to update the paragraph.');
+      backdrop_set_message($message, 'error');
+      backdrop_set_message($exception, 'error');
+    }
+    return NULL;
+  };
+  $toUpdate = array();
+  foreach ($entity->updates as $update) {
+    if (!isset($update['paragraph']->is_new)) {
+      $toUpdate[] = $update;
+    }
+  }
+  foreach ($toUpdate as $update) {
+    $paragraph = $update['paragraph'];
+    $doUpdate($paragraph);
+  }
+  return TRUE;
+}

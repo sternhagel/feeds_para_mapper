@@ -27,7 +27,7 @@ class FeedsParaMapperMappingTestCase extends FeedsParaMapperWebTestCase {
   public function testFieldsAvailable() {
     foreach ($this->bundles[0]['fields'] as $field) {
       $bundle_field = $field['name'];
-      $this->drupalGet('admin/structure/feeds/' . $this->importer . '/mapping');
+      $this->backdropGet('admin/structure/feeds/' . $this->importer . '/mapping');
       $message = format_string("The Paragraphs bundle field @field is found", array("@field" => $bundle_field));
       $this->assertText($bundle_field, $message, "Mapping");
     }
@@ -64,7 +64,7 @@ class FeedsParaMapperNestedMappingTestCase extends FeedsParaMapperWebTestCase {
   public function testFieldsAvailable() {
     foreach ($this->bundles[0]['fields'] as $field) {
       $bundle_field = 'field_' . $field['name'];
-      $this->drupalGet('admin/structure/feeds/' . $this->importer . '/mapping');
+      $this->backdropGet('admin/structure/feeds/' . $this->importer . '/mapping');
       $message = format_string("The Paragraphs bundle field @field is found.", array("@field" => $bundle_field));
       $this->assertText($bundle_field, $message, "Mapping");
     }
@@ -103,14 +103,14 @@ class FeedsParaMapperMultiValuedMappingTestCase extends FeedsParaMapperWebTestCa
    */
   public function testSettingsAvailable() {
     $target = 'field_' . $this->bundles[0]['fields'][0]['name'];
-    $this->drupalGet('admin/structure/feeds/' . $this->importer . '/mapping');
+    $this->backdropGet('admin/structure/feeds/' . $this->importer . '/mapping');
     $targets = array(
       'text' => $target,
     );
     $this->map($targets);
     // Click the gear button so it shows the configuration form:
     $button_name = "mapping_settings_edit_0";
-    $this->drupalPostAJAX(NULL, array(), $button_name);
+    $this->backdropPostAJAX(NULL, array(), $button_name);
     $message = "Maximum Values field exists";
     $this->assertField('config[0][settings][max_values]', $message);
   }
