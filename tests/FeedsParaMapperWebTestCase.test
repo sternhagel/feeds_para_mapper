@@ -102,10 +102,10 @@ class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
               'widget' => 'text_textfield',
               'cardinality' => $cardinality,
               'mapping' => array(
-                'text'  => 'field_description',
+                'text' => 'field_description',
               ),
               'mapping_multiple' => array(
-                'text_multiple'  => 'field_description',
+                'text_multiple' => 'field_description',
               ),
             ),
             array(
@@ -237,7 +237,6 @@ class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
       'fields[_add_new_field][field_name]' => $field_name,
       'fields[_add_new_field][type]' => $type,
       'fields[_add_new_field][widget_type]' => $widget,
-
     );
     $this->drupalPost(NULL, $edit, t('Save'));
 
@@ -338,7 +337,10 @@ class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
       );
       $this->drupalPost(NULL, $edit, t('Save'));
       $this->assertText(t("Your changes have been saved."));
-      $args = array('@source' => $source, '@target' => $target);
+      $args = array(
+        '@source' => $source,
+        '@target' => $target,
+      );
       $message = format_string("Mapped @source source to @target field", $args);
       $this->assertText(t("Mapping has been added."), $message, 'Mapping');
       if ($target === 'nid') {
@@ -424,8 +426,8 @@ class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
     $this->assertTrue($host_field_exists, $message, "Importing");
 
     /*
-    Check if the host Paragraphs field has the id
-    of the created ParagraphsItemEntity.
+     Check if the host Paragraphs field has the id
+     of the created ParagraphsItemEntity.
      */
     $lang = $node->language;
     $id_exists = isset($node->{$host_field}[$lang][0]['value']);
@@ -515,7 +517,7 @@ class FeedsParaMapperWebTestCase extends DrupalWebTestCase {
    * @return array
    *   array of the values.
    */
-  protected function getValues(\ParagraphsItemEntity $paragraph, $target, array $values = array()) {
+  protected function getValues(ParagraphsItemEntity $paragraph, $target, array $values = array()) {
     $target_info = field_info_field($target);
     $node = node_load(1, NULL, TRUE);
     $lang = $node->language;

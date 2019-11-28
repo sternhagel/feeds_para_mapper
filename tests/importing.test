@@ -64,9 +64,9 @@ class FeedsParaMapperSingleValueTestCase extends FeedsParaMapperWebTestCase {
     $message = format_string("The image field @field exists", array('@field' => $image_field));
     $this->assertTrue($image_field_exists, $message);
     $expected_values = array(
-      'alt'   => 'My image alt',
+      'alt' => 'My image alt',
       'title' => "My image title",
-      'uri'   => 'public:///image.png',
+      'uri' => 'public:///image.png',
     );
     foreach ($expected_values as $field => $expected_value) {
       $value_exists = isset($items[0]->{$image_field}[$lang][0][$field]);
@@ -125,7 +125,7 @@ class FeedsParaMapperNestedImportTestCase extends FeedsParaMapperWebTestCase {
         $message = "Field has value";
         $this->assertNotNull($value, $message, 'Nested Importing');
         if ($field['type'] === 'paragraphs') {
-          $isParagraph = get_class($value) === ParagraphsItemEntity::class;
+          $isParagraph = get_class($value) === ParagraphsItemEntity::;
           $message = "Value is paragraph";
           $this->assertTrue($isParagraph, $message, 'Nested Importing');
         }
