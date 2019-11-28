@@ -1,0 +1,48 @@
+[FeedsParaMapperWebTestCase]
+name = FeedsParaMapperWebTestCase
+description = FeedsParaMapperWebTestCase
+group = feeds_para_mapper
+file = tests/FeedsParaMapperWebTestCase.test
+
+[FeedsParaMapperSingleValueTestCase]
+name = Single Value Importing Test
+description = Insures that importing a single value to a Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/importing.test
+
+[FeedsParaMapperNestedImportTestCase]
+name = Nested Importing Test
+description = Insures that importing to a nested Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/importing.test
+
+[FeedsParaMapperMultiValuedImportingTestCase]
+name = Multi-valued Importing Test
+description = Insures that importing to a multi-valued Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/importing.test
+
+[FeedsParaMapperUpdatingTestCase]
+name = Updating Test
+description = Insures that updating the values of Paragraphs fields works correctly
+group = Paragraphs Mapper
+file = tests/importing.test
+
+[FeedsParaMapperMappingTestCase]
+name = Single Value Mapping Test
+description = Insures that mapping a single value to a Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/mapping.test
+
+[FeedsParaMapperNestedMappingTestCase]
+name = Nested Mapping Test
+description = Insures that mapping to a nested Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/mapping.test
+
+[FeedsParaMapperMultiValuedMappingTestCase]
+name = Multi-valued Mapping Test
+description = Insures that mapping to a multi-valued Paragraphs field works correctly
+group = Paragraphs Mapper
+file = tests/mapping.test
+

@@ -1,10 +1,9 @@
 <?php
 
-/**
- * @file
- * Allows feeds to import content to Paragraphs' fields.
- */
-
+ /**
+  * @file
+  * Allows feeds to import content to Paragraphs' fields.
+  */
 
 /**
  * Implements hook_feeds_processor_targets().
@@ -41,7 +40,7 @@ function feeds_para_mapper_feeds_processor_targets($entity_type, $bundle, $with_
     foreach ($sub_fields as $sub_field) {
       $module_targets = feeds_para_mapper_call_targets_form_hook($sub_field);
       foreach ($module_targets as $name => $target) {
-        $targetF = array_filter($sub_fields, function ($item) use ($name){
+        $targetF = array_filter($sub_fields, function ($item) use ($name) {
           $containsKey = strpos($name, $item['machine_name']) !== FALSE;
           $sameKey = $item['machine_name'] === $name;
           return $containsKey || $sameKey;
@@ -116,8 +115,8 @@ function feeds_para_mapper_get_target_fields(array $target, $with_path = FALSE, 
   $name = $target['machine_name'];
   $bundle = $target['bundle'];
   $target_info = field_info_instance($target['entity_type'], $name, $bundle);
-  $target_bundles = array_filter($target_info['settings']['allowed_bundles'], ($item){
-    $item !== -1
+  $target_bundles = array_filter($target_info['settings']['allowed_bundles'], function ($item) {
+    return $item !== -1;
   });
   $target_bundles = array_values($target_bundles);
   foreach ($target_bundles as $target_bundle) {
@@ -186,29 +185,29 @@ function feeds_para_mapper_build_path(array $field, array $first_host) {
     $bundles[$name]['fields'] = $fields;
   }
   $field_bundle = NULL;
-  $getFieldBundle = function ($field) use ($bundles){
-    foreach ($bundles as $bundle){
-      foreach ($bundle['fields'] as $b_field){
-        if ($b_field['field_name'] === $field['field_name']){
+  $getFieldBundle = function ($field) use ($bundles) {
+    foreach ($bundles as $bundle) {
+      foreach ($bundle['fields'] as $b_field) {
+        if ($b_field['field_name'] === $field['field_name']) {
           return $bundle;
         }
       }
     }
     return NULL;
   };
-  $getHost = function ($field_bundle) use ($bundles){
-    foreach ($bundles as $bundle){
-      foreach ($bundle['fields'] as $b_field){
-        if (isset($b_field['settings']['allowed_bundles'])){
-          foreach ($b_field['settings']['allowed_bundles'] as $allowed_bundle){
-            if ($allowed_bundle === $field_bundle['name']){
+  $getHost = function ($field_bundle) use ($bundles) {
+    foreach ($bundles as $bundle) {
+      foreach ($bundle['fields'] as $b_field) {
+        if (isset($b_field['settings']['allowed_bundles'])) {
+          foreach ($b_field['settings']['allowed_bundles'] as $allowed_bundle) {
+            if ($allowed_bundle === $field_bundle['name']) {
               /*
               Get the allowed bundle and set it as the host bundle.
               This grabs the first allowed bundle,
               and might cause issues with multiple bundles field.
               todo: Test with multiple bundles field.
                */
-              $allowed = array_filter($bundles, function ($item) use ($allowed_bundle){
+              $allowed = array_filter($bundles, function ($item) use ($allowed_bundle) {
                 return $item['name'] === $allowed_bundle;
               });
               $allowed = array_values($allowed);
@@ -389,7 +388,7 @@ function feeds_para_mapper_call_targets_form_hook(array $field) {
   $hook = "feeds_processor_targets";
   $alter_hook = "feeds_processor_targets_alter";
   $targets = array();
-  $args =[
+  $args = [
     'paragraphs_item',
     $field['paragraph_bundle'],
   ];
@@ -417,10 +416,10 @@ function feeds_para_mapper_call_targets_form_hook(array $field) {
  */
 function feeds_para_mapper_get_correct_module_name(array $field) {
   /*
-   Sometimes a field module declares a hook different from its name,
-   e.g 'image' field module, which hooks into file_feeds_processor_targets.
-   We add such fields to $diff_names array to be able to call that hook,
-   and later on we change the $field['module']
+  Sometimes a field module declares a hook different from its name,
+  e.g 'image' field module, which hooks into file_feeds_processor_targets.
+  We add such fields to $diff_names array to be able to call that hook,
+  and later on we change the $field['module']
    */
   $diff_names = array(
     array(
@@ -451,7 +450,7 @@ function feeds_para_mapper_get_correct_module_name(array $field) {
  * @param array $mapping
  *   Information about the target field and the target paragraph.
  */
-function feeds_para_mapper_set_target(FeedsSource $source, $entity, $target, array $values, array $mapping) {
+function feeds_para_mapper_set_target(\FeedsSource $source, $entity, $target, array $values, array $mapping) {
   $mapping = feeds_para_mapper_init_mapping($entity, $mapping);
   // Check if the field module support Feeds.
   if (!function_exists($mapping['module_callback'])) {
@@ -486,12 +485,12 @@ function feeds_para_mapper_set_target(FeedsSource $source, $entity, $target, arr
  * @param array $value
  *   The source field value.
  */
-function feeds_para_mapper_set_value(FeedsSource $source, $entity, ParagraphsItemEntity $paragraph, array $mapping, array $value) {
+function feeds_para_mapper_set_value(\FeedsSource $source, $entity, \ParagraphsItemEntity $paragraph, array $mapping, array $value) {
   /*
-   Call the the field module to begin mapping.
-   Sometimes the field module sets a target different than the real target,
-   e.g 'target_field:sub_target',
-   in this case we need to pass the $mapping['target'] value.
+  Call the the field module to begin mapping.
+  Sometimes the field module sets a target different than the real target,
+  e.g 'target_field:sub_target',
+  in this case we need to pass the $mapping['target'] value.
    */
   $correct_field = $mapping['field'];
   $is_different = FALSE;
@@ -505,7 +504,7 @@ function feeds_para_mapper_set_value(FeedsSource $source, $entity, ParagraphsIte
     $lang = $mapping['language'];
     $paragraph->{$field}[$lang] = array();
   }
-  $args =[
+  $args = [
     $source,
     $paragraph,
     $correct_field,
@@ -681,8 +680,8 @@ function feeds_para_mapper_get_attached($entity, $mapping, $emptyOnly = FALSE, $
 function feeds_para_mapper_create_paragraphs($entity, array $mapping, array $slices) {
   $items = array();
   for ($i = 0; $i < count($slices); $i++) {
-    $should_create = feeds_para_mapper_should_create_new($entity, $mapping, $slices, $slices[$i]);
-    if (!$should_create) {
+    $should_create = feeds_para_mapper_should_create_new($entity,$mapping, $slices, $slices[$i]);
+    if(!$should_create){
       return $items;
     }
     if ($i === 0) {
@@ -792,7 +791,7 @@ function feeds_para_mapper_append_paragraphs($entity, array $mapping, array $ent
  *
  * @see feeds_para_mapper_feeds_presave()
  */
-function feeds_para_mapper_append_to_update($entity, array $mapping, ParagraphsItemEntity $paragraph) {
+function feeds_para_mapper_append_to_update($entity, array $mapping, \ParagraphsItemEntity $paragraph) {
   if (!isset($entity->updates)) {
     $entity->updates = array();
   }
@@ -850,12 +849,12 @@ function feeds_para_mapper_should_create_new($entity, array $mapping, array $sli
   }
 
   $exceeded = TRUE;
-  if ($skip_check) {
+  if($skip_check){
     $max = $mapping['max_values'];
     $allowed = $max;
     // Compare the child entity values with max values allowed:
-    if (count($futureValue)) {
-      if (count($futureValue) < $max) {
+    if(count($futureValue)){
+      if(count($futureValue) < $max){
         $exceeded = FALSE;
       }
     }
